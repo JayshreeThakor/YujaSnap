@@ -1,7 +1,12 @@
 package com.example.yujasnap
 
+import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.LocationManager
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -23,10 +28,13 @@ import com.example.yujasnap.viewmodel.ImageUriViewModel
  */
 class MainActivity : ComponentActivity() {
 
-    // Register the permission request with a callback to handle permission result
-    private val requestCameraPermission = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) {}
+    // Register permission request for camera, location, and notification
+    private val requestPermissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+        if (permissions["android.permission.ACCESS_FINE_LOCATION"] == true) {
+            // Location permission granted, proceed with location-related actions
+            checkAndEnableGPS(this) {}
+        }
+    }
 
     /**
      * Called when the activity is created. It sets the content view and initializes the theme
@@ -34,13 +42,13 @@ class MainActivity : ComponentActivity() {
      */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Request camera permission before setting the content
-        if (ContextCompat.checkSelfPermission(
-                this,
-                "android.permission.CAMERA"
-            ) != PackageManager.PERMISSION_GRANTED) {
-            // Launch the permission request if not granted
-            requestCameraPermission.launch("android.permission.CAMERA")
+
+        // Check if required permissions are granted or not
+        val permissionsToRequest = permissionList(this)
+
+        // If permissions are needed, request them
+        if (permissionsToRequest.isNotEmpty()) {
+            requestPermissions.launch(permissionsToRequest.toTypedArray())
         }
 
         setContent {
@@ -72,4 +80,33 @@ fun screenRoots() {
     }
 }
 
+private fun permissionList(context: Context): MutableList<String> {
+    // Check if required permissions are granted or not
+    val permissionsToRequest = mutableListOf<String>()
+
+    if (ContextCompat.checkSelfPermission(context, "android.permission.CAMERA") != PackageManager.PERMISSION_GRANTED) {
+        permissionsToRequest.add("android.permission.CAMERA")
+    }
+
+    if (ContextCompat.checkSelfPermission(context, "android.permission.ACCESS_FINE_LOCATION") != PackageManager.PERMISSION_GRANTED) {
+        permissionsToRequest.add("android.permission.ACCESS_FINE_LOCATION")
+    }
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+        ContextCompat.checkSelfPermission(context, "android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
+        permissionsToRequest.add("android.permission.POST_NOTIFICATIONS")
+    }
+
+    return permissionsToRequest
+}
+
+private fun checkAndEnableGPS(context: Context, onGPSRequired: () -> Unit) {
+    val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+    if (!locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+        // Prompt user to enable GPS (open GPS settings)
+        val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+        context.startActivity(intent)
+        onGPSRequired()
+    }
+}
 
