@@ -50,10 +50,10 @@ class MainActivity : ComponentActivity() {
         if (permissionsToRequest.isNotEmpty()) {
             requestPermissions.launch(permissionsToRequest.toTypedArray())
         }
-
+        val capture = intent.getBooleanExtra("capture", false)
         setContent {
             YujaSnapTheme {
-                screenRoots()
+                screenRoots(capture)
             }
         }
     }
@@ -65,14 +65,15 @@ class MainActivity : ComponentActivity() {
  * The `NavHost` is used to manage the navigation between different screens.
  */
 @Composable
-fun screenRoots() {
+fun screenRoots(capture : Boolean) {
     // Initialize the NavController for managing navigation
     val navController = rememberNavController()
     // Initialize the ViewModel to manage image URI state
     val imageUriViewModel: ImageUriViewModel = viewModel()
 
+    val startDestination = if (capture) "camera" else "home"
     // Set up the navigation graph
-    NavHost(navController = navController, startDestination = "home") {
+    NavHost(navController = navController, startDestination = startDestination) {
         // Define the composable for each screen and their routes
         composable("home") { homeScreen(navController) }
         composable("camera") { cameraScreen(navController, imageUriViewModel) }
